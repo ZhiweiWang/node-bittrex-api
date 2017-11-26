@@ -161,9 +161,12 @@ var NodeBittrexApi = function() {
     sendRequestCallback(callback, options);
   };
 
-  var connectws = function(callback) {
-    if (wsclient) {
+  var connectws = function(callback, force) {
+    if (wsclient && !force) {
       return callback(wsclient);
+    }
+    if (force) {
+      try { wsclient.end(); } catch (e) {}
     }
     cloudscraper.get('https://bittrex.com/', function(error, response, body) {
       if (error) {
