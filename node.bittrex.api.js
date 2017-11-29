@@ -161,8 +161,13 @@ var NodeBittrexApi = function() {
     sendRequestCallback(callback, options);
   };
 
+  var websocketGlobalTickers = false;
+  var websocketGlobalTickerCallback;
+  var websocketMarkets = [];
+  var websocketMarketsCallback;
+
   var connectws = function(callback, force) {
-    if (wsclient && !force) {
+    if (wsclient && !force && callback) {
       return callback(wsclient);
     }
     if (force) {
@@ -228,7 +233,35 @@ var NodeBittrexApi = function() {
             ((opts.verbose) ? console.log('Websocket Retrying: ', retry) : '');
             // change to true to stop retrying
             return false;
-          }
+          },
+          connected: function() {
+            if (websocketGlobalTickers) {
+              wsclient.call('CoreHub', 'SubscribeToSummaryDeltas').done(function(err, result) {
+                if (err) {
+                  return console.error(err);
+                }
+
+                if (result === true) {
+                  ((opts.verbose) ? console.log('Subscribed to global tickers') : '');
+                }
+              });
+            }
+
+            if (websocketMarkets.length > 0) {
+              websocketMarkets.forEach(function(market) {
+                wsclient.call('CoreHub', 'SubscribeToExchangeDeltas', market).done(function(err, result) {
+                  if (err) {
+                    return console.error(err);
+                  }
+
+                  if (result === true) {
+                    ((opts.verbose) ? console.log('Subscribed to ' + market) : '');
+                  }
+                });
+              });
+            }
+            ((opts.verbose) ? console.log('Websocket connected') : '');
+          },
         };
         if (callback) {
           callback(wsclient);
@@ -238,39 +271,32 @@ var NodeBittrexApi = function() {
     return wsclient;
   };
 
-  var setMessageReceivedWs = function(callback) {
+  var setMessageReceivedWs = function() {
     wsclient.serviceHandlers.messageReceived = function(message) {
       try {
         var data = jsonic(message.utf8Data);
         if (data && data.M) {
           data.M.forEach(function(M) {
-            callback(M, wsclient);
+            if (websocketGlobalTickerCallback) {
+              websocketGlobalTickerCallback(M, wsclient);
+            }
+            if (websocketMarketsCallback) {
+              websocketMarketsCallback(M, wsclient);
+            }
           });
         } else {
           // ((opts.verbose) ? console.log('Unhandled data', data) : '');
-          callback({'unhandled_data' : data}, wsclient);
+          if (websocketGlobalTickerCallback) {
+            websocketGlobalTickerCallback({'unhandled_data' : data}, wsclient);
+          }
+          if (websocketMarketsCallback) {
+            websocketMarketsCallback({'unhandled_data' : data}, wsclient);
+          }
         }
       } catch (e) {
         ((opts.verbose) ? console.error(e) : '');
       }
       return false;
-    };
-  };
-
-  var setConnectedWs = function(markets) {
-    wsclient.serviceHandlers.connected = function(connection) {
-      markets.forEach(function(market) {
-        wsclient.call('CoreHub', 'SubscribeToExchangeDeltas', market).done(function(err, result) {
-          if (err) {
-            return console.error(err);
-          }
-
-          if (result === true) {
-            ((opts.verbose) ? console.log('Subscribed to ' + market) : '');
-          }
-        });
-      });
-      ((opts.verbose) ? console.log('Websocket connected') : '');
     };
   };
 
@@ -284,13 +310,16 @@ var NodeBittrexApi = function() {
       },
       listen: function(callback) {
         connectws(function() {
-          setMessageReceivedWs(callback);
+          websocketGlobalTickers = true;
+          websocketGlobalTickerCallback = callback;
+          setMessageReceivedWs();
         });
       },
       subscribe: function(markets, callback) {
         connectws(function() {
-          setConnectedWs(markets);
-          setMessageReceivedWs(callback);
+          websocketMarkets = markets;
+          websocketMarketsCallback = callback;
+          setMessageReceivedWs();
         });
       }
     },
