@@ -305,22 +305,22 @@ var NodeBittrexApi = function() {
       extractOptions(options);
     },
     websockets: {
-      client: function(callback) {
-        return connectws(callback);
+      client: function(callback, force) {
+        return connectws(callback, force);
       },
-      listen: function(callback) {
+      listen: function(callback, force) {
         connectws(function() {
           websocketGlobalTickers = true;
           websocketGlobalTickerCallback = callback;
           setMessageReceivedWs();
-        });
+        }, force);
       },
-      subscribe: function(markets, callback) {
+      subscribe: function(markets, callback, force) {
         connectws(function() {
           websocketMarkets = markets;
           websocketMarketsCallback = callback;
           setMessageReceivedWs();
-        });
+        }, force);
       }
     },
     sendCustomRequest: function(request_string, callback, credentials) {
