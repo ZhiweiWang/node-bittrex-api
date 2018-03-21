@@ -131,7 +131,7 @@ getmarkethistory({market : 'USDT-BTC'}, function(data, error) {});
 ```
 you'll get the reversed order:
 ```javascript
-getmarkethistory({market : 'USDT-BTC'}, function(error, data) {});
+getmarkethistory({market : 'USDT-BTC'}, function(data, error) {});
 ```
 
 
@@ -188,6 +188,8 @@ understanding.
 #### websockets.listen
 This will subscribe to just the global ticker updates.
 
+Note: It is recommended to use this in ``onConnect()`` - see example ``examples/``.
+
 ```javascript
 bittrex.websockets.listen(function(data, client) {
   if (data.M === 'updateSummaryState') {
@@ -206,6 +208,10 @@ This will subscribe to the specified markets data. To build
 your candle data, order book and market history, etc. you will need to subscribe
 to the individual markets you wish to watch. You can subscribe to all of them.
 
+This can be called multiple times.
+
+Note: It is recommended to use this in ``onConnect()`` - see example ``examples/``.
+
 ```javascript
 bittrex.websockets.subscribe(['BTC-ETH','BTC-SC','BTC-ZEN'], function(data, client) {
   if (data.M === 'updateExchangeState') {
@@ -221,13 +227,15 @@ bittrex.websockets.subscribe(['BTC-ETH','BTC-SC','BTC-ZEN'], function(data, clie
 You can override the libraries logic for the following events. Note, this will
 replace the libraries logic.
 ```javascript
-websocketClient.serviceHandlers.reconnecting = function (message) {
-  return true; // set to true stops reconnect/retrying
-}
-
-websocketClient.serviceHandlers.messageReceived = function (message) {
-  console.log(message); // the messages received must be parsed as json first e.g. via jsonic(message.utf8Data)
-}
+bittrex.websockets.client(function(client) {
+  client.serviceHandlers.reconnecting = function (message) {
+    return true; // set to true stops reconnect/retrying
+  }
+  
+  client.serviceHandlers.messageReceived = function (message) {
+    console.log(message); // the messages received must be parsed as json first e.g. via jsonic(message.utf8Data)
+  }
+});
 ```
 
 all possible serviceHandlers
@@ -442,7 +450,7 @@ bittrex.getmarketsummary( { market : 'BTC-LTC'}, function( data, err ) {
 
 ##### getorderbook
 ```javascript
-bittrex.getorderbook({ market : 'BTC-LTC', depth : 10, type : 'both' }, function( data, err ) {
+bittrex.getorderbook({ market : 'BTC-LTC', type : 'both' }, function( data, err ) {
   console.log( data );
 });
 ```
@@ -494,7 +502,7 @@ Bittrex it is possible these methods will change or become invalid without notic
 ```javascript
 bittrex.getcandles({
   marketName: 'USDT-BTC',
-  tickInterval: 'fiveMin', // intervals are keywords
+  tickInterval: 'fiveMin', // intervals are keywords:  'oneMin', 'fiveMin', 'thirtyMin', 'hour', 'day'
 }, function( data, err ) {
   console.log( data );
 });
